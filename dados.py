@@ -5,8 +5,8 @@ import streamlit as st
 from openpyxl import load_workbook
 
 # ---------------- CONFIGURAÇÕES ----------------
-MODELO_PATH = "PLANILHA GERAL CLIENTES MENSAIS - ATUALIZADA SET25 (1).xlsx"  # nome do arquivo do modelo (fixo)
-MODELO_ABA = "Geral"  # nome da aba dentro do modelo que servirá de base
+MODELO_PATH = "PLANILHA GERAL CLIENTES MENSAIS - ATUALIZADA SET25 (1).xlsx"
+MODELO_ABA = "Geral"
 # ------------------------------------------------
 
 st.set_page_config(page_title="Gerar planilha por cliente", layout="wide")
@@ -16,8 +16,20 @@ uploaded_raw = st.file_uploader("📤 Envie a planilha **BRUTA** (dados originai
 
 if uploaded_raw:
     try:
-        df = pd.read_excel(uploaded_raw)
+        # Detectar linha de cabeçalho automaticamente
+        temp_df = pd.read_excel(uploaded_raw, header=None)
+        header_row = None
+        for i, row in temp_df.iterrows():
+            if any(isinstance(v, str) and re.search(r"(cliente|contrato|processo)", str(v), re.IGNORECASE) for v in row):
+                header_row = i
+                break
+
+        if header_row is None:
+            header_row = 0
+
+        df = pd.read_excel(uploaded_raw, header=header_row)
         df.columns = df.columns.astype(str).str.strip()
+
     except Exception as e:
         st.error(f"❌ Erro ao ler a planilha: {e}")
         st.stop()
@@ -46,16 +58,17 @@ if uploaded_raw:
         modelo = wb[MODELO_ABA]
         df[coluna_cliente] = df[coluna_cliente].astype(str).str.strip()
 
-        for cliente, dados_cliente in df.groupby(coluna_cliente):
-            if not cliente or cliente.lower() in ["nan", "none", ""]:
-                cliente = "SemNome"
+        clientes_unicos = df[coluna_cliente].dropna().unique()
 
+        for cliente in clientes_unicos:
+            dados_cliente = df[df[coluna_cliente] == cliente]
             nome_aba = re.sub(r'[\\/*?:\[\]]', "-", str(cliente))[:31]
+
             nova_aba = wb.copy_worksheet(modelo)
             nova_aba.title = nome_aba
 
-            # escreve dados do cliente na aba copiada
-            start_row = 2  # define onde começam os dados (pode ajustar conforme o modelo)
+            # Detecta onde começam os dados na aba modelo
+            start_row = 2
             for r_idx, (_, linha) in enumerate(dados_cliente.iterrows(), start=start_row):
                 for c_idx, valor in enumerate(linha, start=1):
                     nova_aba.cell(row=r_idx, column=c_idx, value=valor)
