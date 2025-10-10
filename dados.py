@@ -6,7 +6,7 @@ from openpyxl import load_workbook
 
 # ---------------- CONFIGURAÇÕES ----------------
 MODELO_PATH = "PLANILHA GERAL CLIENTES MENSAIS - ATUALIZADA SET25 (1).xlsx"  # nome do arquivo do modelo (fixo)
-MODELO_ABA = "GERAL CLIENTES"        # nome da aba dentro do modelo que servirá de base
+MODELO_ABA = "Geral"        # nome da aba dentro do modelo que servirá de base
 # ------------------------------------------------
 
 st.set_page_config(page_title="Gerar planilha por cliente", layout="wide")
@@ -75,5 +75,6 @@ if uploaded_raw:
             file_name="Planilha_Final_Clientes.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
+
 
 
