@@ -5,7 +5,7 @@ import streamlit as st
 from openpyxl import load_workbook
 
 # ---------- CONFIG ----------
-MODELO_PATH = "PLANILHA GERAL CLIENTES MENSAIS - ATUALIZADA SET25 (1).xlsx"
+MODELO_PATH = "TS Setembro 2025).xlsx"
 MODELO_ABA = "Geral"
 # ----------------------------
 
@@ -145,3 +145,4 @@ if uploaded_raw:
         st.download_button("⤓ Baixar planilha final", data=bio,
                            file_name="Planilha_Final_Clientes.xlsx",
                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
