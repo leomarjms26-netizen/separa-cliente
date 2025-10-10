@@ -5,14 +5,12 @@ import streamlit as st
 from openpyxl import load_workbook
 
 st.set_page_config(page_title="Gerar planilha por cliente (com dados preenchidos)", layout="wide")
-
 st.title("📊 Automatizador — Gerar planilha final por cliente")
 
 uploaded_raw = st.file_uploader("1️⃣ Envie a planilha **BRUTA** (dados originais)", type=["xlsx", "xls"])
 uploaded_model = st.file_uploader("2️⃣ Envie o **MODELO** (planilha de exemplo)", type=["xlsx", "xls"])
 
 if uploaded_raw and uploaded_model:
-    # Lê os dados brutos
     df = pd.read_excel(uploaded_raw)
     st.success(f"✅ Planilha bruta carregada com {len(df)} linhas e {len(df.columns)} colunas.")
     st.dataframe(df.head())
@@ -20,7 +18,7 @@ if uploaded_raw and uploaded_model:
     # Detectar coluna do cliente
     colunas_cliente = [c for c in df.columns if "cliente" in c.lower() or "processo" in c.lower() or "contrato" in c.lower()]
     if not colunas_cliente:
-        colunas_cliente = list(df.columns)  # fallback: todas as colunas
+        colunas_cliente = list(df.columns)
 
     coluna_cliente = st.selectbox("📌 Escolha a coluna que identifica o CLIENTE:", options=colunas_cliente)
 
@@ -29,11 +27,12 @@ if uploaded_raw and uploaded_model:
     modelo_aba = st.selectbox("📄 Escolha a aba modelo para copiar:", options=wb.sheetnames)
 
     if st.button("🚀 Gerar planilha final"):
-        if not coluna_cliente or coluna_cliente not in df.columns:
-            st.error("❌ Nenhuma coluna válida selecionada para identificar o cliente.")
-            st.stop()
-
         modelo = wb[modelo_aba]
+
+        # Garantir que a coluna do cliente existe
+        if coluna_cliente not in df.columns:
+            st.error("❌ A coluna selecionada não existe na planilha.")
+            st.stop()
 
         # Loop pelos clientes únicos
         for cliente, dados_cliente in df.groupby(coluna_cliente):
@@ -41,23 +40,23 @@ if uploaded_raw and uploaded_model:
             if nome_aba == "" or nome_aba.lower() == "nan":
                 nome_aba = "SemNome"
 
-            # Corrige caracteres inválidos para nome de aba
-            nome_aba = re.sub(r'[\\/*?:\[\]]', "-", nome_aba)
-            nome_aba = nome_aba[:31]  # limite Excel
+            # Corrige nome da aba
+            nome_aba = re.sub(r'[\\/*?:\[\]]', "-", nome_aba)[:31]
 
             # Copia a aba modelo
             nova_aba = wb.copy_worksheet(modelo)
             nova_aba.title = nome_aba
 
-            # Acha a próxima linha vazia (para não sobrescrever o cabeçalho)
-            linha_inicio = nova_aba.max_row + 1
+            # Escrever cabeçalho
+            for c_idx, coluna in enumerate(dados_cliente.columns, start=1):
+                nova_aba.cell(row=1, column=c_idx, value=coluna)
 
-            # Escreve o DataFrame do cliente na aba
-            for r_idx, row in enumerate(dados_cliente.itertuples(index=False), start=linha_inicio):
-                for c_idx, valor in enumerate(row, start=1):
+            # Escrever os dados (logo abaixo do cabeçalho)
+            for r_idx, (_, linha) in enumerate(dados_cliente.iterrows(), start=2):
+                for c_idx, valor in enumerate(linha, start=1):
                     nova_aba.cell(row=r_idx, column=c_idx, value=valor)
 
-        # Remove a aba modelo original (opcional)
+        # Remove aba modelo original
         wb.remove(modelo)
 
         # Salvar em memória
