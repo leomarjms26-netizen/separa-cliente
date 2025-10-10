@@ -4,16 +4,20 @@ import pandas as pd
 import streamlit as st
 from openpyxl import load_workbook
 
-st.set_page_config(page_title="Gerar planilha por cliente (com dados preenchidos)", layout="wide")
-st.title("📊 Automatizador — Gerar planilha final por cliente")
+st.set_page_config(page_title="Gerar planilha por cliente (corrigida)", layout="wide")
+st.title("📊 Automatizador — Gerar planilha final por cliente (versão revisada)")
 
 uploaded_raw = st.file_uploader("1️⃣ Envie a planilha **BRUTA** (dados originais)", type=["xlsx", "xls"])
-uploaded_model = st.file_uploader("2️⃣ Envie o **MODELO** (planilha de exemplo)", type=["xlsx", "xls"])
+uploaded_model = st.file_uploader("2️⃣ Envie o **MODELO** (planilha base)", type=["xlsx", "xls"])
 
 if uploaded_raw and uploaded_model:
+    # Lê os dados brutos
     df = pd.read_excel(uploaded_raw)
-    st.success(f"✅ Planilha bruta carregada com {len(df)} linhas e {len(df.columns)} colunas.")
-    st.dataframe(df.head())
+    st.write("🧩 Colunas detectadas na planilha bruta:")
+    st.dataframe(pd.DataFrame({"Colunas": df.columns}))
+
+    # Normaliza nomes de colunas (remove espaços e padroniza maiúsculas)
+    df.columns = df.columns.str.strip()
 
     # Detectar coluna do cliente
     colunas_cliente = [c for c in df.columns if "cliente" in c.lower() or "processo" in c.lower() or "contrato" in c.lower()]
@@ -29,42 +33,42 @@ if uploaded_raw and uploaded_model:
     if st.button("🚀 Gerar planilha final"):
         modelo = wb[modelo_aba]
 
-        # Garantir que a coluna do cliente existe
         if coluna_cliente not in df.columns:
-            st.error("❌ A coluna selecionada não existe na planilha.")
+            st.error(f"❌ A coluna '{coluna_cliente}' não foi encontrada nas colunas da planilha.")
             st.stop()
+
+        if df[coluna_cliente].isnull().all():
+            st.error("❌ Todos os valores da coluna de cliente estão vazios — não há como agrupar.")
+            st.stop()
+
+        # Remove espaços e normaliza valores de cliente
+        df[coluna_cliente] = df[coluna_cliente].astype(str).str.strip()
 
         # Loop pelos clientes únicos
         for cliente, dados_cliente in df.groupby(coluna_cliente):
-            nome_aba = str(cliente).strip()
-            if nome_aba == "" or nome_aba.lower() == "nan":
-                nome_aba = "SemNome"
+            if not cliente or cliente.lower() in ["nan", "none"]:
+                cliente = "SemNome"
 
-            # Corrige nome da aba
-            nome_aba = re.sub(r'[\\/*?:\[\]]', "-", nome_aba)[:31]
-
-            # Copia a aba modelo
+            nome_aba = re.sub(r'[\\/*?:\[\]]', "-", str(cliente))[:31]
             nova_aba = wb.copy_worksheet(modelo)
             nova_aba.title = nome_aba
 
-            # Escrever cabeçalho
+            # Escrever cabeçalhos e dados
             for c_idx, coluna in enumerate(dados_cliente.columns, start=1):
                 nova_aba.cell(row=1, column=c_idx, value=coluna)
 
-            # Escrever os dados (logo abaixo do cabeçalho)
             for r_idx, (_, linha) in enumerate(dados_cliente.iterrows(), start=2):
                 for c_idx, valor in enumerate(linha, start=1):
                     nova_aba.cell(row=r_idx, column=c_idx, value=valor)
 
-        # Remove aba modelo original
         wb.remove(modelo)
 
-        # Salvar em memória
+        # Salvar resultado
         output = io.BytesIO()
         wb.save(output)
         output.seek(0)
 
-        st.success("✅ Planilha gerada com sucesso! Cada aba contém os dados do cliente correspondente.")
+        st.success("✅ Planilha criada com sucesso! Cada aba contém os dados do cliente correspondente.")
         st.download_button(
             label="⬇️ Baixar planilha final",
             data=output,
