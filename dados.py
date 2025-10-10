@@ -19,6 +19,9 @@ if uploaded_raw and uploaded_model:
 
     # Detectar coluna do cliente
     colunas_cliente = [c for c in df.columns if "cliente" in c.lower() or "processo" in c.lower() or "contrato" in c.lower()]
+    if not colunas_cliente:
+        colunas_cliente = list(df.columns)  # fallback: todas as colunas
+
     coluna_cliente = st.selectbox("📌 Escolha a coluna que identifica o CLIENTE:", options=colunas_cliente)
 
     # Carregar o modelo
@@ -26,6 +29,10 @@ if uploaded_raw and uploaded_model:
     modelo_aba = st.selectbox("📄 Escolha a aba modelo para copiar:", options=wb.sheetnames)
 
     if st.button("🚀 Gerar planilha final"):
+        if not coluna_cliente or coluna_cliente not in df.columns:
+            st.error("❌ Nenhuma coluna válida selecionada para identificar o cliente.")
+            st.stop()
+
         modelo = wb[modelo_aba]
 
         # Loop pelos clientes únicos
